@@ -15,15 +15,17 @@ TEMPLATE = app
 SOURCES += main.cpp\
         mainwindow.cpp \
     session/networksessionmanager.cpp \
-    session/networksession.cpp \
+    session/datapack.cpp \
     dialog/sendsmsdialog.cpp \
     model/hosttablemodel.cpp
 
 HEADERS  += mainwindow.h \
     session/networksessionmanager.h \
-    session/networksession.h \
+    session/datapack.h \
     dialog/sendsmsdialog.h \
     model/hosttablemodel.h
 
 FORMS    += mainwindow.ui \
     dialog/sendsmsdialog.ui
+
+RC_FILE += icon.rc

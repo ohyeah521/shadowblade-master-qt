@@ -54,32 +54,41 @@ void NetworkSessionManager::onHostOnline()
 
 void NetworkSessionManager::onNewConnect()
 {
-    QTcpSocket *tcpSocket = mTcpServer.nextPendingConnection();
+    QAbstractSocket *socket = mTcpServer.nextPendingConnection();
 
-    NetworkSession* networkSession = new NetworkSession(tcpSocket);
-    QObject::connect(networkSession,SIGNAL(onReadData(NetworkSession*,QByteArray)),this,SLOT(handleNewSession(NetworkSession*,QByteArray)));
-    QObject::connect(tcpSocket,SIGNAL(error(QAbstractSocket::SocketError)),networkSession,SLOT(deleteLater()));
-    QObject::connect(tcpSocket,SIGNAL(aboutToClose()),networkSession,SLOT(deleteLater()));
+    DataPack* dataPack = new DataPack(socket);
+    QObject::connect(socket,SIGNAL(destroyed()),dataPack,SLOT(deleteLater()));
+    QObject::connect(dataPack,SIGNAL(onReadData(DataPack*,QByteArray)),this,SLOT(handleNewSession(DataPack*,QByteArray)));
+    QObject::connect(socket,SIGNAL(error(QAbstractSocket::SocketError)),socket,SLOT(deleteLater()));
+    QObject::connect(socket,SIGNAL(aboutToClose()),socket,SLOT(deleteLater()));
 }
 
-void NetworkSessionManager::handleNewSession(NetworkSession* networkSession, QByteArray data)
+void NetworkSessionManager::handleNewSession(DataPack* dataPack, QByteArray data)
 {
-    QObject::disconnect(networkSession->socket(),SIGNAL(aboutToClose()),networkSession,SLOT(deleteLater()));
-    QObject::disconnect(networkSession->socket(),SIGNAL(error(QAbstractSocket::SocketError)),networkSession,SLOT(deleteLater()));
-    QObject::disconnect(networkSession,SIGNAL(onReadData(NetworkSession*,QByteArray)),this,SLOT(handleNewSession(NetworkSession*,QByteArray)));
+    QAbstractSocket* socket = dataPack->socket();
+    QObject::disconnect(dataPack,SIGNAL(onReadData(DataPack*,QByteArray)),this,SLOT(handleNewSession(DataPack*,QByteArray)));
+    QObject::disconnect(socket,SIGNAL(error(QAbstractSocket::SocketError)),socket,SLOT(deleteLater()));
+    QObject::disconnect(socket,SIGNAL(aboutToClose()),socket,SLOT(deleteLater()));
 
     QMutexLocker locker(&mMutex);
     cleanTimeoutSessions();
     map<QString, SessionInfo>::iterator it = mSessionMap.find(data);
     if(it==mSessionMap.end())
     {
-        networkSession->deleteLater();
+        dataPack->socket()->close();
         return;
     }
-    networkSession->setSessionName(it->second.sessionName);
-    networkSession->setSessionData(it->second.sessionData);
-    networkSession->setSessionUuid(it->first);
-    emit onNewSession(networkSession);
+
+    //send session name
+    dataPack->writeDataPack(it->second.sessionName.toLocal8Bit().constData(), it->second.sessionName.length());
+
+    //send session init data if has
+    if( it->second.sessionData.length() >0 )
+    {
+        dataPack->writeDataPack(it->second.sessionData.constData(), it->second.sessionData.length());
+    }
+    emit onNewSession(it->second.sessionName, dataPack->socket());
+    dataPack->deleteLater();
 }
 
 void NetworkSessionManager::startSessionOnHosts(vector<pair<QHostAddress, quint16> > addrList, QString sessionName, QByteArray sessionData)

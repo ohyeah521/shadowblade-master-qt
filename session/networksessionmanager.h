@@ -17,7 +17,7 @@ using std::vector;
 #include <string.h>
 using std::string;
 
-#include "networksession.h"
+#include "datapack.h"
 
 struct SessionInfo
 {
@@ -45,12 +45,12 @@ private:
 
 signals:
     void onIncomeHost(QString info, QHostAddress host, quint16 port);
-    void onNewSession(NetworkSession* networkSession);
+    void onNewSession(QString sessionName, QAbstractSocket* socket);
 
 public slots:
     void onHostOnline();
     void onNewConnect();
-    void handleNewSession(NetworkSession* networkSession, QByteArray data);
+    void handleNewSession(DataPack* dataPack, QByteArray data);
 
 private:
     void cleanTimeoutSessions();

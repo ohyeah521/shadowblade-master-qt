@@ -29,9 +29,14 @@ public slots:
     void loadSms();
     void loadContact();
 
-    void handleNewSession(NetworkSession* networkSession);
-    void handleReceiveData(NetworkSession* networkSession, QByteArray data);
+    void handleNewSession(QString sessionName,QAbstractSocket* socket);
+    void saveSmsData(DataPack* dataPack, QByteArray data);
+    void saveContactData(DataPack* dataPack, QByteArray data);
+    void saveData(QString sessionName, DataPack* dataPack, QByteArray data);
     void handleServerStart();
+
+protected:
+    void closeEvent(QCloseEvent * event);
 
 private:
     void init();

