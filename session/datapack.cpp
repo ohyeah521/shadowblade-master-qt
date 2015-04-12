@@ -27,7 +27,7 @@ QByteArray DataPack::readDataPack()
     while(mAsyncRead)
     {
         mSocket->waitForReadyRead();
-        if( readingDataPack() == -1 )
+        if( readingDataPack() !=0 )
         {
             break;
         }
