@@ -52,7 +52,7 @@ int DataPack::readingDataPack()
     {
         QDataStream dataStream(mSocket);
         dataStream.setByteOrder(QDataStream::BigEndian);
-        quint32 signature;
+        unsigned short signature;
         dataStream >> signature;
         if( signature != SIGNATURE )
         {

@@ -5,12 +5,11 @@
 #include <QDataStream>
 #include <QtEndian>
 
-#define SIGNATURE 0XEEFF
-
 class DataPack: public QObject
 {
     Q_OBJECT
 public:
+    static const unsigned short SIGNATURE = -8531; // 0XDEAD
     DataPack(QAbstractSocket* socket, bool asyncRead = true);
     ~DataPack();
     void writeDataPack(const char *data, qint64 len);
