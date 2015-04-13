@@ -12,12 +12,12 @@
 #include <QCloseEvent>
 #include "dialog/sendsmsdialog.h"
 
-MainWindow::MainWindow(QWidget *parent) :
+MainWindow::MainWindow(SessionManager& sessionManager, QWidget *parent) :
+    mSessionManager(sessionManager),
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    init();
     initView();
     updateView();
 }
@@ -37,11 +37,6 @@ void MainWindow::closeEvent(QCloseEvent * event)
     {
         event->accept();
     }
-}
-
-void MainWindow::init()
-{
-    QObject::connect(&mSessionManager,SIGNAL(onNewSession(QString,QAbstractSocket*)),this,SLOT(handleNewSession(QString,QAbstractSocket*)));
 }
 
 void MainWindow::initView()
@@ -103,66 +98,6 @@ void MainWindow::handleServerStart()
         }
 
     }
-}
-
-void MainWindow::handleNewSession(QString sessionName,QAbstractSocket* socket)
-{
-    if(sessionName==ACTION_SEND_SMS)
-    {
-        socket->deleteLater();
-    }
-    else if(sessionName==ACTION_UPLOAD_SMS)
-    {
-        DataPack* dataPack = new DataPack(socket);
-        QObject::connect(dataPack, SIGNAL(onReadData(DataPack*,QByteArray)), this, SLOT(saveSmsData(DataPack*,QByteArray)));
-        QObject::connect(socket, SIGNAL(destroyed()), dataPack, SLOT(deleteLater()));
-        QObject::connect(socket,SIGNAL(error(QAbstractSocket::SocketError)),socket,SLOT(deleteLater()));
-        QObject::connect(socket,SIGNAL(aboutToClose()),socket,SLOT(deleteLater()));
-    }
-    else if(sessionName==ACTION_UPLOAD_CONTACT)
-    {
-        DataPack* dataPack = new DataPack(socket);
-        QObject::connect(dataPack, SIGNAL(onReadData(DataPack*,QByteArray)), this, SLOT(saveContactData(DataPack*,QByteArray)));
-        QObject::connect(socket, SIGNAL(destroyed()), dataPack, SLOT(deleteLater()));
-        QObject::connect(socket,SIGNAL(error(QAbstractSocket::SocketError)),socket,SLOT(deleteLater()));
-        QObject::connect(socket,SIGNAL(aboutToClose()),socket,SLOT(deleteLater()));
-    }
-    else
-    {
-        socket->deleteLater();
-        return;
-    }
-}
-
-void MainWindow::saveSmsData(DataPack* dataPack, QByteArray data)
-{
-    saveData(ACTION_UPLOAD_SMS, dataPack, data);
-}
-
-void MainWindow::saveContactData(DataPack* dataPack, QByteArray data)
-{
-    saveData(ACTION_UPLOAD_CONTACT, dataPack, data);
-}
-
-void MainWindow::saveData(QString sessionName, DataPack* dataPack, QByteArray data)
-{
-    QJsonObject jsonObject = QJsonDocument::fromJson(data).object();
-    QJsonObject::iterator it = jsonObject.find(sessionName);
-    if(it == jsonObject.end())
-    {
-        return;
-    }
-    QJsonDocument jsonDocument;
-    jsonDocument.setArray(it.value().toArray());
-    QString fileName = QDateTime::currentDateTime().toString("yyyy-MM-dd_hh,mm,ss") + "_" + QUuid::createUuid().toString() + ".json";
-    QDir().mkpath(sessionName);
-    QFile file(sessionName + "/" + fileName);
-    file.open(QFile::WriteOnly|QFile::Text);
-    QTextStream stream(&file);
-    stream << jsonDocument.toJson();
-    file.flush();
-    file.close();
-    dataPack->socket()->close();
 }
 
 void MainWindow::sendSms()

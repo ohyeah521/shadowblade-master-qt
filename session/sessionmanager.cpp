@@ -1,16 +1,16 @@
-#include "networksessionmanager.h"
+#include "sessionmanager.h"
 
-NetworkSessionManager::NetworkSessionManager()
+SessionManager::SessionManager()
 {
     init();
 }
 
-NetworkSessionManager::~NetworkSessionManager()
+SessionManager::~SessionManager()
 {
     stop();
 }
 
-void NetworkSessionManager::init()
+void SessionManager::init()
 {
     mIsStart = false;
     mTimeout = 10000;
@@ -18,12 +18,12 @@ void NetworkSessionManager::init()
     QObject::connect(&mTcpServer,SIGNAL(newConnection()),this,SLOT(onNewConnect()));
 }
 
-bool NetworkSessionManager::isStart()
+bool SessionManager::isStart()
 {
     return mIsStart;
 }
 
-bool NetworkSessionManager::start(int port)
+bool SessionManager::start(int port)
 {
     if(isStart()) return false;
     mIsStart = true;
@@ -33,16 +33,47 @@ bool NetworkSessionManager::start(int port)
     return true;
 }
 
-void NetworkSessionManager::stop()
+void SessionManager::stop()
 {
-    QMutexLocker locker(&mMutex);
+    QMutexLocker locker(&mSessionInfoMapMutex);
     mSessionMap.clear();
     mIsStart = false;
     mUdpSocket.close();
     mTcpServer.close();
 }
 
-void NetworkSessionManager::onHostOnline()
+void SessionManager::addSessionHandler(QString sessionName, SessionHandler* handler)
+{
+    QMutexLocker locker(&mSessionHandlerMapMutex);
+    mSessionHandlerMap[sessionName] = handler;
+}
+void SessionManager::removeSessionHandler(QString sessionName)
+{
+    QMutexLocker locker(&mSessionHandlerMapMutex);
+    map<QString, SessionHandler*>::iterator it = mSessionHandlerMap.find(sessionName);
+    if(it != mSessionHandlerMap.end())
+    {
+        mSessionHandlerMap.erase(it);
+    }
+}
+void SessionManager::removeAllSessionHandler()
+{
+    QMutexLocker locker(&mSessionHandlerMapMutex);
+    mSessionHandlerMap.clear();
+}
+
+SessionHandler* SessionManager::getSessionHandler(QString sessionName)
+{
+    QMutexLocker locker(&mSessionHandlerMapMutex);
+    map<QString, SessionHandler*>::iterator itHandler = mSessionHandlerMap.find(sessionName);
+    if(itHandler == mSessionHandlerMap.end())
+    {
+        return NULL;
+    }
+    return itHandler->second;
+}
+
+void SessionManager::onHostOnline()
 {
     QHostAddress host;
     quint16 port;
@@ -52,7 +83,7 @@ void NetworkSessionManager::onHostOnline()
     emit onIncomeHost(datagram, host, port);
 }
 
-void NetworkSessionManager::onNewConnect()
+void SessionManager::onNewConnect()
 {
     QAbstractSocket *socket = mTcpServer.nextPendingConnection();
 
@@ -63,35 +94,36 @@ void NetworkSessionManager::onNewConnect()
     QObject::connect(socket,SIGNAL(aboutToClose()),socket,SLOT(deleteLater()));
 }
 
-void NetworkSessionManager::handleNewSession(DataPack* dataPack, QByteArray data)
+void SessionManager::handleNewSession(DataPack* dataPack, QByteArray data)
 {
     QAbstractSocket* socket = dataPack->socket();
     QObject::disconnect(dataPack,SIGNAL(onReadData(DataPack*,QByteArray)),this,SLOT(handleNewSession(DataPack*,QByteArray)));
     QObject::disconnect(socket,SIGNAL(error(QAbstractSocket::SocketError)),socket,SLOT(deleteLater()));
     QObject::disconnect(socket,SIGNAL(aboutToClose()),socket,SLOT(deleteLater()));
 
-    QMutexLocker locker(&mMutex);
+    QMutexLocker locker(&mSessionInfoMapMutex);
     cleanTimeoutSessions();
     map<QString, SessionInfo>::iterator it = mSessionMap.find(data);
     if(it==mSessionMap.end())
     {
-        dataPack->socket()->close();
+        socket->close();
         return;
     }
 
-    //send session name
-    dataPack->writeDataPack(it->second.sessionName.toLocal8Bit().constData(), it->second.sessionName.length());
+    //session startup process
+    dataPack->writeDataPack(it->second.sessionName.toLocal8Bit().constData(),it->second.sessionName.toLocal8Bit().length());
 
-    //send session init data if has
-    if( it->second.sessionData.length() >0 )
-    {
-        dataPack->writeDataPack(it->second.sessionData.constData(), it->second.sessionData.length());
-    }
-    emit onNewSession(it->second.sessionName, dataPack->socket());
     dataPack->deleteLater();
+
+    //give session to handler
+    SessionHandler* sessionHandler = getSessionHandler(it->second.sessionName);
+    if(sessionHandler != NULL)
+    {
+        sessionHandler->handleSession(Session(socket,socket->peerAddress(),socket->peerPort(),it->second.sessionName,it->second.sessionData));
+    }
 }
 
-void NetworkSessionManager::startSessionOnHosts(vector<pair<QHostAddress, quint16> > addrList, QString sessionName, QByteArray sessionData)
+void SessionManager::startSessionOnHosts(vector<pair<QHostAddress, quint16> > addrList, QString sessionName, QVariant sessionData)
 {
     if(addrList.size()==0) return;
     QByteArray sessionUuid = QUuid::createUuid().toByteArray();
@@ -106,12 +138,12 @@ void NetworkSessionManager::startSessionOnHosts(vector<pair<QHostAddress, quint1
     info.sessionName = sessionName;
     info.createTime = clock();
 
-    QMutexLocker locker(&mMutex);
+    QMutexLocker locker(&mSessionInfoMapMutex);
     cleanTimeoutSessions();
     mSessionMap[sessionUuid] = info;
 }
 
-void NetworkSessionManager::cleanTimeoutSessions()
+void SessionManager::cleanTimeoutSessions()
 {
     time_t expiredTime = clock() - mTimeout;
 
@@ -126,12 +158,12 @@ void NetworkSessionManager::cleanTimeoutSessions()
     }
 }
 
-time_t NetworkSessionManager::getTimeout() const
+time_t SessionManager::getTimeout() const
 {
     return mTimeout;
 }
 
-void NetworkSessionManager::setTimeout(time_t value)
+void SessionManager::setTimeout(time_t value)
 {
     mTimeout = value;
 }
