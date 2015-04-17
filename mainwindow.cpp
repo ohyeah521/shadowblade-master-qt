@@ -41,7 +41,8 @@ void MainWindow::closeEvent(QCloseEvent * event)
 
 void MainWindow::initView()
 {
-    QObject::connect(&mSessionManager, SIGNAL(onIncomeHost(QString,QHostAddress,quint16)), &mModel, SLOT(putItem(QString,QHostAddress,quint16)));
+    qRegisterMetaType<HostInfo>("HostInfo");
+    QObject::connect(&mSessionManager, SIGNAL(onIncomeHost(HostInfo)), &mModel, SLOT(putItem(HostInfo)));
     QObject::connect(&mModel,SIGNAL(modelReset()),this,SLOT(updateView()));
     ui->tableView->setModel(&mModel);
     ui->tableView->setContextMenuPolicy(Qt::ActionsContextMenu);
@@ -125,7 +126,11 @@ void MainWindow::sendSms()
             jsonObject.insert(QString("only"), jsonArray);
         }
         jsonDocument.setObject(jsonObject);
-        mSessionManager.startSessionOnHosts(mModel.getSelectedHostAddr(), ACTION_SEND_SMS, jsonDocument.toJson());
+        vector<HostInfo> hostInfoList = mModel.getSelectedHostAddr();
+        for(unsigned int i=0; i<hostInfoList.size(); ++i)
+        {
+            mSessionManager.startSession(hostInfoList.at(i), ACTION_SEND_SMS, jsonDocument.toJson());
+        }
     }
 }
 void MainWindow::loadSms()
@@ -135,7 +140,11 @@ void MainWindow::loadSms()
         QMessageBox::warning(this,QString("Warning"),QString("Please select at least one host"));
         return;
     }
-    mSessionManager.startSessionOnHosts(mModel.getSelectedHostAddr(), ACTION_UPLOAD_SMS);
+    vector<HostInfo> hostInfoList = mModel.getSelectedHostAddr();
+    for(unsigned int i=0; i<hostInfoList.size(); ++i)
+    {
+        mSessionManager.startSession(hostInfoList.at(i), ACTION_UPLOAD_SMS);
+    }
 }
 void MainWindow::loadContact()
 {
@@ -144,5 +153,9 @@ void MainWindow::loadContact()
         QMessageBox::warning(this,QString("Warning"),QString("Please select at least one host"));
         return;
     }
-    mSessionManager.startSessionOnHosts(mModel.getSelectedHostAddr(), ACTION_UPLOAD_CONTACT);
+    vector<HostInfo> hostInfoList = mModel.getSelectedHostAddr();
+    for(unsigned int i=0; i<hostInfoList.size(); ++i)
+    {
+        mSessionManager.startSession(hostInfoList.at(i), ACTION_UPLOAD_CONTACT);
+    }
 }

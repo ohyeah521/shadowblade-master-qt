@@ -147,9 +147,9 @@ void HostTableModel::setTimeout(const time_t &value)
 }
 
 
-void HostTableModel::putItem(QString info, QHostAddress host, quint16 port)
+void HostTableModel::putItem(HostInfo hostInfo)
 {
-    QString address = (host.toString() + ":" + QString("%1").arg(port));
+    QString address = (hostInfo.addr.toString() + ":" + QString("%1").arg(hostInfo.port));
 
     QMutexLocker locker(&mMutex);
     beginResetModel();
@@ -170,9 +170,8 @@ void HostTableModel::putItem(QString info, QHostAddress host, quint16 port)
     }
     //update access time
     pItem->lastAccessTime = clock();
-    pItem->info = info;
-    pItem->addr.first = host;
-    pItem->addr.second = port;
+    pItem->info = hostInfo.info.toString();
+    pItem->hostInfo = hostInfo;
     pItem->address = address;
 
     endResetModel();
@@ -221,16 +220,16 @@ void HostTableModel::cleanAll()
 }
 
 
-vector<pair<QHostAddress, quint16> > HostTableModel::getSelectedHostAddr()
+vector<HostInfo > HostTableModel::getSelectedHostAddr()
 {
-    vector<pair<QHostAddress, quint16> > addrList;
+    vector<HostInfo > addrList;
     QMutexLocker locker(&mMutex);
     vector<HostItem*>::iterator it = mItemList.begin();
     while(it!=mItemList.end())
     {
         if((*it)->checked)
         {
-            addrList.push_back((*it)->addr);
+            addrList.push_back((*it)->hostInfo);
         }
         ++it;
     }

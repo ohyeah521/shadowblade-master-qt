@@ -33,7 +33,8 @@ HEADERS  += mainwindow.h \
     defines.h \
     session/handler/loadcontacts.h \
     session/handler/loadsms.h \
-    util/data.h
+    util/data.h \
+    session/hostinfo.h
 
 FORMS    += mainwindow.ui \
     dialog/sendsmsdialog.ui

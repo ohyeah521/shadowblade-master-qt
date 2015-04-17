@@ -14,10 +14,12 @@ using std::vector;
 using std::map;
 using std::pair;
 
+#include "../session/hostinfo.h"
+
 struct HostItem
 {
     QString info;
-    pair<QHostAddress, quint16> addr;
+    HostInfo hostInfo;
     QString address;
     time_t lastAccessTime;
     bool checked;
@@ -38,10 +40,10 @@ public:
 
     time_t getTimeout() const;
     void setTimeout(const time_t &value);
-    vector<pair<QHostAddress, quint16> > getSelectedHostAddr();
+    vector<HostInfo > getSelectedHostAddr();
     int getSelectedCount();
 public slots:
-    void putItem(QString info, QHostAddress host, quint16 port);
+    void putItem(HostInfo hostInfo);
     void cleanTimeoutItem();
     void cleanAll();
 

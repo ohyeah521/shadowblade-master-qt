@@ -14,8 +14,8 @@ void SessionManager::init()
 {
     mIsStart = false;
     mTimeout = 10000;
-    QObject::connect(&mUdpSocket,SIGNAL(readyRead()),this,SLOT(onHostOnline()));
-    QObject::connect(&mTcpServer,SIGNAL(newConnection()),this,SLOT(onNewConnect()));
+    QObject::connect(&mUdpSocket,SIGNAL(readyRead()),this,SLOT(onRecvFrom()));
+    QObject::connect(&mTcpServer,SIGNAL(newConnection()),this,SLOT(onAccept()));
 }
 
 bool SessionManager::isStart()
@@ -42,12 +42,12 @@ void SessionManager::stop()
     mTcpServer.close();
 }
 
-void SessionManager::addSessionHandler(QString sessionName, SessionHandler* handler)
+void SessionManager::addSessionHandler(const QString& sessionName, SessionHandler* handler)
 {
     QMutexLocker locker(&mSessionHandlerMapMutex);
     mSessionHandlerMap[sessionName] = handler;
 }
-void SessionManager::removeSessionHandler(QString sessionName)
+void SessionManager::removeSessionHandler(const QString& sessionName)
 {
     QMutexLocker locker(&mSessionHandlerMapMutex);
     map<QString, SessionHandler*>::iterator it = mSessionHandlerMap.find(sessionName);
@@ -62,7 +62,7 @@ void SessionManager::removeAllSessionHandler()
     mSessionHandlerMap.clear();
 }
 
-SessionHandler* SessionManager::getSessionHandler(QString sessionName)
+SessionHandler* SessionManager::getSessionHandler(const QString& sessionName)
 {
     QMutexLocker locker(&mSessionHandlerMapMutex);
     map<QString, SessionHandler*>::iterator itHandler = mSessionHandlerMap.find(sessionName);
@@ -73,31 +73,77 @@ SessionHandler* SessionManager::getSessionHandler(QString sessionName)
     return itHandler->second;
 }
 
-void SessionManager::onHostOnline()
+void SessionManager::onRecvFrom()
 {
     QHostAddress host;
     quint16 port;
     QByteArray datagram;
     datagram.resize(mUdpSocket.pendingDatagramSize());
     mUdpSocket.readDatagram(datagram.data(),datagram.size(), &host, &port);
-    emit onIncomeHost(datagram, host, port);
+    QDataStream dataStream(datagram);
+    short signature = 0;
+    dataStream >> signature;
+    if( signature != SIGNATURE )
+    {
+        return;
+    }
+    short operation = 0;
+    dataStream >> operation;
+    if(operation == OPERATION_HEARTBEAT)
+    {
+        QByteArray info(datagram);
+        info.remove(0, sizeof(signature) + sizeof(operation));
+        HostInfo hostInfo;
+        hostInfo.addr = host;
+        hostInfo.port = port;
+        hostInfo.info = info;
+        hostInfo.mode = HostInfo::REFLECT_CONNECT;
+        emit onIncomeHost(hostInfo);
+    }
+    else if(operation == OPERATION_ACCEPT_HOST)
+    {
+        short listenPort = 0;
+        dataStream >> listenPort;
+        if(listenPort == 0)
+        {
+            return;
+        }
+        QByteArray uuid(datagram);
+        uuid.remove(0, sizeof(signature) + sizeof(operation) + sizeof(listenPort));
+        QMutexLocker locker(&mSessionInfoMapMutex);
+        map<QString, SessionInfo>::iterator it = mSessionMap.find(uuid);
+        if(it==mSessionMap.end())
+        {
+            return;
+        }
+        QTcpSocket *socket = new QTcpSocket();
+        handleNewSocket(socket);
+        socket->connectToHost(host,listenPort);
+    }
+    else
+    {
+        ;
+    }
 }
 
-void SessionManager::onNewConnect()
+void SessionManager::onAccept()
 {
-    QAbstractSocket *socket = mTcpServer.nextPendingConnection();
+    handleNewSocket(mTcpServer.nextPendingConnection());
+}
 
+void SessionManager::handleNewSocket(QAbstractSocket *socket)
+{
     DataPack* dataPack = new DataPack(socket);
     QObject::connect(socket,SIGNAL(destroyed()),dataPack,SLOT(deleteLater()));
-    QObject::connect(dataPack,SIGNAL(onReadData(DataPack*,QByteArray)),this,SLOT(handleNewSession(DataPack*,QByteArray)));
+    QObject::connect(dataPack,SIGNAL(onReadData(DataPack*,QByteArray)),this,SLOT(onNewSocket(DataPack*,QByteArray)));
     QObject::connect(socket,SIGNAL(error(QAbstractSocket::SocketError)),socket,SLOT(deleteLater()));
     QObject::connect(socket,SIGNAL(aboutToClose()),socket,SLOT(deleteLater()));
 }
 
-void SessionManager::handleNewSession(DataPack* dataPack, QByteArray data)
+void SessionManager::onNewSocket(DataPack* dataPack, QByteArray data)
 {
     QAbstractSocket* socket = dataPack->socket();
-    QObject::disconnect(dataPack,SIGNAL(onReadData(DataPack*,QByteArray)),this,SLOT(handleNewSession(DataPack*,QByteArray)));
+    QObject::disconnect(dataPack,SIGNAL(onReadData(DataPack*,QByteArray)),this,SLOT(onNewSocket(DataPack*,QByteArray)));
     QObject::disconnect(socket,SIGNAL(error(QAbstractSocket::SocketError)),socket,SLOT(deleteLater()));
     QObject::disconnect(socket,SIGNAL(aboutToClose()),socket,SLOT(deleteLater()));
 
@@ -109,6 +155,8 @@ void SessionManager::handleNewSession(DataPack* dataPack, QByteArray data)
         socket->close();
         return;
     }
+    //start session success
+    emit onStartSessionSuccess(it->second.sessionName, it->second.hostInfo);
 
     //session startup process
     dataPack->writeDataPack(it->second.sessionName.toLocal8Bit().constData(),it->second.sessionName.toLocal8Bit().length());
@@ -123,19 +171,21 @@ void SessionManager::handleNewSession(DataPack* dataPack, QByteArray data)
     }
 }
 
-void SessionManager::startSessionOnHosts(vector<pair<QHostAddress, quint16> > addrList, QString sessionName, QVariant sessionData)
+void SessionManager::startSession(const HostInfo& hostInfo, const QString& sessionName, const QVariant& sessionData)
 {
-    if(addrList.size()==0) return;
+    if(hostInfo.mode != HostInfo::REFLECT_CONNECT || hostInfo.mode != HostInfo::REFLECT_CONNECT) return;
     QByteArray sessionUuid = QUuid::createUuid().toByteArray();
-    vector<pair<QHostAddress, quint16> >::iterator it = addrList.begin();
-    while(it!=addrList.end())
-    {
-        mUdpSocket.writeDatagram(sessionUuid,it->first,it->second);
-        ++it;
-    }
+    QByteArray data;
+    QDataStream dataStream(&data, QIODevice::WriteOnly);
+    dataStream.setByteOrder(QDataStream::BigEndian);
+    dataStream << SIGNATURE << (short)( (hostInfo.mode == HostInfo::REFLECT_CONNECT) ? OPERATION_CONNECT_HOST : OPERATION_LISTEN_HOST ); //signature & operation code
+    dataStream.writeRawData(sessionUuid.data(),sessionUuid.length());
+    mUdpSocket.writeDatagram(data,hostInfo.addr,hostInfo.port);
+
     SessionInfo info;
     info.sessionData = sessionData;
     info.sessionName = sessionName;
+    info.hostInfo = hostInfo;
     info.createTime = clock();
 
     QMutexLocker locker(&mSessionInfoMapMutex);
@@ -152,6 +202,9 @@ void SessionManager::cleanTimeoutSessions()
     {
         if(it->second.createTime < expiredTime)
         {
+            //start session failed
+            emit onStartSessionFailed(it->second.sessionName, it->second.hostInfo);
+            //remove it
             mSessionMap.erase(it);
         }
         ++it;

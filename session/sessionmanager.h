@@ -19,9 +19,11 @@ using std::string;
 
 #include "datapack.h"
 #include "session.h"
+#include "hostinfo.h"
 
 struct SessionInfo
 {
+    HostInfo hostInfo;
     QVariant sessionData;
     QString sessionName;
     time_t createTime;
@@ -31,35 +33,46 @@ class SessionManager: public QObject
 {
     Q_OBJECT
 public:
+    static const short SIGNATURE = -8531; // 0XDEAD
+    enum {
+        OPERATION_HEARTBEAT = 0,
+        OPERATION_CONNECT_HOST = 1,
+        OPERATION_LISTEN_HOST = 2,
+        OPERATION_ACCEPT_HOST = 3
+    };
+
     SessionManager();
     virtual ~SessionManager();
     bool isStart();
     bool start(int port);
     void stop();
-    void startSessionOnHosts(vector<pair<QHostAddress, quint16> > addrList, QString sessionName, QVariant sessionData = QVariant());
+    void startSession(const HostInfo& hostInfo, const QString& sessionName, const QVariant& sessionData = QVariant());
 
     time_t getTimeout() const;
     void setTimeout(time_t value);
 
-    void addSessionHandler(QString sessionName, SessionHandler* handler);
-    SessionHandler* getSessionHandler(QString sessionName);
-    void removeSessionHandler(QString sessionName);
+    void addSessionHandler(const QString& sessionName, SessionHandler* handler);
+    SessionHandler* getSessionHandler(const QString& sessionName);
+    void removeSessionHandler(const QString& sessionName);
     void removeAllSessionHandler();
 
 private:
     void init();
 
 signals:
-    void onIncomeHost(QString info, QHostAddress host, quint16 port);
+    void onStartSessionSuccess(QString sessionName, HostInfo hostInfo);
+    void onStartSessionFailed(QString sessionName, HostInfo hostInfo);
+    void onIncomeHost(HostInfo hostInfo);
     void onNewSession(QString sessionName, QAbstractSocket* socket);
 
 private slots:
-    void onHostOnline();
-    void onNewConnect();
-    void handleNewSession(DataPack* dataPack, QByteArray data);
+    void onRecvFrom();
+    void onAccept();
+    void onNewSocket(DataPack* dataPack, QByteArray data);
 
 private:
     void cleanTimeoutSessions();
+    void handleNewSocket(QAbstractSocket *socket);
 
 private:
     time_t mTimeout;
