@@ -2,11 +2,13 @@
 #include <QAbstractSocket>
 #include <QHostAddress>
 
+#include "hostinfo.h"
+
 class Session
 {
 public:
-    Session(QAbstractSocket* socket, QHostAddress hostAddress, quint16 port, QString sessionName, QVariant sessionData):
-        socket(socket),hostAddress(hostAddress),port(port),sessionName(sessionName),sessionData(sessionData){}
+    Session(QAbstractSocket* socket, const HostInfo& hostInfo, QString sessionName, QVariant sessionData):
+        socket(socket),hostInfo(hostInfo),sessionName(sessionName),sessionData(sessionData){}
 
     QAbstractSocket *getSocket() const
     {
@@ -23,20 +25,14 @@ public:
         return sessionData;
     }
 
-    QHostAddress getHostAddress() const
+    HostInfo getHostInfo() const
     {
-        return hostAddress;
-    }
-
-    quint16 getPort() const
-    {
-        return port;
+        return hostInfo;
     }
 
 private:
     QAbstractSocket *socket;
-    QHostAddress hostAddress;
-    quint16 port;
+    HostInfo hostInfo;
     QString sessionName;
     QVariant sessionData;
 };

@@ -167,7 +167,9 @@ void SessionManager::onNewSocket(DataPack* dataPack, QByteArray data)
     SessionHandler* sessionHandler = getSessionHandler(it->second.sessionName);
     if(sessionHandler != NULL)
     {
-        sessionHandler->handleSession(Session(socket,socket->peerAddress(),socket->peerPort(),it->second.sessionName,it->second.sessionData));
+        sessionHandler->handleSession(Session(socket,
+                                              HostInfo(socket->peerAddress(),socket->peerPort(), HostInfo::REFLECT_CONNECT),
+                                              it->second.sessionName,it->second.sessionData));
     }
 }
 
