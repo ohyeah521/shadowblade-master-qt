@@ -3,7 +3,7 @@
 
 #include <QThread>
 #include <QMainWindow>
-#include "session/sessionmanager.h"
+#include "session/networkmanager.h"
 #include "model/hosttablemodel.h"
 #include "defines.h"
 
@@ -38,6 +38,7 @@ private:
     Ui::MainWindow *ui;
     HostTableModel mModel;
     SessionManager& mSessionManager;
+    NetworkManager mNetworkManager;
 };
 
 #endif // MAINWINDOW_H

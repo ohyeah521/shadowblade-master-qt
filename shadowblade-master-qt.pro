@@ -17,24 +17,26 @@ SOURCES += main.cpp\
     session/datapack.cpp \
     dialog/sendsmsdialog.cpp \
     model/hosttablemodel.cpp \
-    session/sessionmanager.cpp \
     session/handler/sendsms.cpp \
     session/handler/loadcontacts.cpp \
     session/handler/loadsms.cpp \
-    util/data.cpp
+    util/data.cpp \
+    session/networkmanager.cpp \
+    session/sessionmanager.cpp
 
 HEADERS  += mainwindow.h \
     session/datapack.h \
     dialog/sendsmsdialog.h \
     model/hosttablemodel.h \
     session/session.h \
-    session/sessionmanager.h \
     session/handler/sendsms.h \
     defines.h \
     session/handler/loadcontacts.h \
     session/handler/loadsms.h \
     util/data.h \
-    session/hostinfo.h
+    session/hostinfo.h \
+    session/networkmanager.h \
+    session/sessionmanager.h
 
 FORMS    += mainwindow.ui \
     dialog/sendsmsdialog.ui

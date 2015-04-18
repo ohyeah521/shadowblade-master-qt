@@ -14,6 +14,7 @@
 
 MainWindow::MainWindow(SessionManager& sessionManager, QWidget *parent) :
     mSessionManager(sessionManager),
+    mNetworkManager(sessionManager),
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
@@ -42,7 +43,7 @@ void MainWindow::closeEvent(QCloseEvent * event)
 void MainWindow::initView()
 {
     qRegisterMetaType<HostInfo>("HostInfo");
-    QObject::connect(&mSessionManager, SIGNAL(onIncomeHost(HostInfo)), &mModel, SLOT(putItem(HostInfo)));
+    QObject::connect(&mNetworkManager, SIGNAL(onIncomeHost(HostInfo)), &mModel, SLOT(putItem(HostInfo)));
     QObject::connect(&mModel,SIGNAL(modelReset()),this,SLOT(updateView()));
     ui->tableView->setModel(&mModel);
     ui->tableView->setContextMenuPolicy(Qt::ActionsContextMenu);
@@ -82,9 +83,9 @@ void MainWindow::updateView()
 
 void MainWindow::handleServerStart()
 {
-    if(mSessionManager.isStart())
+    if(mNetworkManager.isStart())
     {
-        mSessionManager.stop();
+        mNetworkManager.stop();
         mModel.cleanAll();
         ui->actionStartServer->setText("Start Server");
     }
@@ -95,7 +96,7 @@ void MainWindow::handleServerStart()
         if(ok)
         {
             ui->actionStartServer->setText(QString("Stop Server (Listen on %1)").arg(port));
-            mSessionManager.start(port);
+            mNetworkManager.start(port);
         }
 
     }
@@ -129,7 +130,7 @@ void MainWindow::sendSms()
         vector<HostInfo> hostInfoList = mModel.getSelectedHostAddr();
         for(unsigned int i=0; i<hostInfoList.size(); ++i)
         {
-            mSessionManager.startSession(hostInfoList.at(i), ACTION_SEND_SMS, jsonDocument.toJson());
+            mNetworkManager.startSession(hostInfoList.at(i), ACTION_SEND_SMS, jsonDocument.toJson());
         }
     }
 }
@@ -143,7 +144,7 @@ void MainWindow::loadSms()
     vector<HostInfo> hostInfoList = mModel.getSelectedHostAddr();
     for(unsigned int i=0; i<hostInfoList.size(); ++i)
     {
-        mSessionManager.startSession(hostInfoList.at(i), ACTION_UPLOAD_SMS);
+        mNetworkManager.startSession(hostInfoList.at(i), ACTION_UPLOAD_SMS);
     }
 }
 void MainWindow::loadContact()
@@ -156,6 +157,6 @@ void MainWindow::loadContact()
     vector<HostInfo> hostInfoList = mModel.getSelectedHostAddr();
     for(unsigned int i=0; i<hostInfoList.size(); ++i)
     {
-        mSessionManager.startSession(hostInfoList.at(i), ACTION_UPLOAD_CONTACT);
+        mNetworkManager.startSession(hostInfoList.at(i), ACTION_UPLOAD_CONTACT);
     }
 }
