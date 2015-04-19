@@ -22,7 +22,8 @@ SOURCES += main.cpp\
     session/handler/loadsms.cpp \
     util/data.cpp \
     session/networkmanager.cpp \
-    session/sessionmanager.cpp
+    session/sessionmanager.cpp \
+    session/hostpool.cpp
 
 HEADERS  += mainwindow.h \
     session/datapack.h \
@@ -36,7 +37,8 @@ HEADERS  += mainwindow.h \
     util/data.h \
     session/hostinfo.h \
     session/networkmanager.h \
-    session/sessionmanager.h
+    session/sessionmanager.h \
+    session/hostpool.h
 
 FORMS    += mainwindow.ui \
     dialog/sendsmsdialog.ui

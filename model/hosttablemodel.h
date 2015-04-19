@@ -10,26 +10,16 @@
 #include <QHostAddress>
 #include <vector>
 #include <map>
+#include "../session/hostpool.h"
 using std::vector;
 using std::map;
 using std::pair;
-
-#include "../session/hostinfo.h"
-
-struct HostItem
-{
-    QString info;
-    HostInfo hostInfo;
-    QString address;
-    time_t lastAccessTime;
-    bool checked;
-};
 
 class HostTableModel: public QAbstractTableModel
 {
     Q_OBJECT
 public:
-    explicit HostTableModel(QObject *parent = 0);
+    explicit HostTableModel(HostPool& hostPool, QObject *parent = 0);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const;              //重载QAbstractItemModel的rowCount函数
     int columnCount(const QModelIndex &parent = QModelIndex()) const;           //重载QAbstractItemModel的columnCount函数
@@ -38,29 +28,15 @@ public:
     Qt::ItemFlags flags(const QModelIndex &index) const;
     bool setData(const QModelIndex &index, const QVariant &value, int role);
 
-    time_t getTimeout() const;
-    void setTimeout(const time_t &value);
-    vector<HostInfo > getSelectedHostAddr();
-    bool getHostInfo(int index, HostInfo& info);
-    int getSelectedCount();
 public slots:
-    void putItem(HostInfo hostInfo);
-    void cleanTimeoutItem();
-    void cleanAll();
-
-public slots:
+    void refresh();
     void selectAll();
     void unselectAll();
     void reverseSelect();
 
 private:
-    map<QString, HostItem*> mItemIndex;
-    vector<HostItem*> mItemList;
+    HostPool& mHostPool;
     QStringList headList;
-    QMutex mMutex;
-    QTimer mTimer;
-    time_t mTimeout;
-    int mSelectedCount;
 };
 
 #endif // ANDROIDHOSTTABLEMODEL_H

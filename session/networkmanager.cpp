@@ -16,7 +16,7 @@ void NetworkManager::init()
     mTimeout = 10000;
     QObject::connect(&mUdpSocket,SIGNAL(readyRead()),this,SLOT(onRecvFrom()));
     QObject::connect(&mTcpServer,SIGNAL(newConnection()),this,SLOT(onAccept()));
-    QObject::connect(&mTimer,SIGNAL(timeout()),this,SLOT(cleanTimeoutSessions()));
+    QObject::connect(&mTimer,SIGNAL(timeout()),this,SLOT(onTimeout()));
 }
 
 bool NetworkManager::isStart()
@@ -45,6 +45,27 @@ void NetworkManager::stop()
     mTimer.stop();
 }
 
+void NetworkManager::onTimeout()
+{
+    cleanTimeoutSessions();
+    int poolSize = getHostPool().size();
+    getHostPool().cleanTimeoutItem();
+    if(poolSize != getHostPool().size())
+    {
+        emit onHostPoolChange();
+    }
+}
+
+void NetworkManager::onIncomeHost(const HostInfo& hostInfo)
+{
+    int poolSize = getHostPool().size();
+    getHostPool().putItem(hostInfo);
+    if(poolSize != getHostPool().size())
+    {
+        emit onHostPoolChange();
+    }
+}
+
 void NetworkManager::onRecvFrom()
 {
     QHostAddress host;
@@ -70,7 +91,7 @@ void NetworkManager::onRecvFrom()
         hostInfo.port = port;
         hostInfo.info = info;
         hostInfo.mode = HostInfo::REFLECT_CONNECT;
-        emit onIncomeHost(hostInfo);
+        onIncomeHost(hostInfo);
     }
     else if(operation == OPERATION_ACCEPT_HOST)
     {
@@ -110,6 +131,11 @@ void NetworkManager::handleNewSocket(QAbstractSocket *socket)
     QObject::connect(dataPack,SIGNAL(onReadData(DataPack*,QByteArray)),this,SLOT(onNewSocket(DataPack*,QByteArray)));
     QObject::connect(socket,SIGNAL(error(QAbstractSocket::SocketError)),socket,SLOT(deleteLater()));
     QObject::connect(socket,SIGNAL(aboutToClose()),socket,SLOT(deleteLater()));
+}
+
+HostPool& NetworkManager::getHostPool()
+{
+    return mHostPool;
 }
 
 void NetworkManager::onNewSocket(DataPack* dataPack, QByteArray data)

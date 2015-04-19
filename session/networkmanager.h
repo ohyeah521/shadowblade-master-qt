@@ -22,6 +22,8 @@ using std::string;
 #include "sessionmanager.h"
 #include "hostinfo.h"
 
+#include "../session/hostpool.h"
+
 struct SessionInfo
 {
     HostInfo hostInfo;
@@ -52,22 +54,26 @@ public:
     time_t getTimeout() const;
     void setTimeout(time_t value);
 
-private:
-    void init();
+    HostPool& getHostPool();
+
+protected:
+    void onIncomeHost(const HostInfo& hostInfo);
+    void cleanTimeoutSessions();
 
 signals:
     void onStartSessionSuccess(QString sessionName, HostInfo hostInfo);
     void onStartSessionFailed(QString sessionName, HostInfo hostInfo);
-    void onIncomeHost(HostInfo hostInfo);
     void onNewSession(QString sessionName, QAbstractSocket* socket);
+    void onHostPoolChange();
 
 private slots:
     void onRecvFrom();
     void onAccept();
     void onNewSocket(DataPack* dataPack, QByteArray data);
-    void cleanTimeoutSessions();
+    void onTimeout();
 
 private:
+    void init();
     void handleNewSocket(QAbstractSocket *socket);
 
 private:
@@ -79,6 +85,7 @@ private:
     QMutex mSessionInfoMapMutex;
     map<QString,SessionInfo> mSessionMap;
     SessionManager& mSessionManager;
+    HostPool mHostPool;
 };
 
 #endif // NETWORKSERVERMANAGER_H

@@ -16,6 +16,7 @@
 MainWindow::MainWindow(SessionManager& sessionManager, QWidget *parent) :
     mSessionManager(sessionManager),
     mNetworkManager(sessionManager),
+    mModel(mNetworkManager.getHostPool()),
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
@@ -77,7 +78,7 @@ void MainWindow::initLeftMenu(QWidget* widget)
 void MainWindow::initView()
 {
     qRegisterMetaType<HostInfo>("HostInfo");
-    QObject::connect(&mNetworkManager, SIGNAL(onIncomeHost(HostInfo)), &mModel, SLOT(putItem(HostInfo)));
+    QObject::connect(&mNetworkManager, SIGNAL(onHostPoolChange()), &mModel, SLOT(refresh()));
     QObject::connect(&mNetworkManager, SIGNAL(onStartSessionSuccess(QString,HostInfo)), this, SLOT(onStartSessionSuccess(QString,HostInfo)));
     QObject::connect(&mNetworkManager, SIGNAL(onStartSessionFailed(QString,HostInfo)), this, SLOT(onStartSessionFailed(QString,HostInfo)));
     QObject::connect(&mModel,SIGNAL(modelReset()),this,SLOT(updateView()));
@@ -97,7 +98,7 @@ void MainWindow::initView()
 
 void MainWindow::updateView()
 {
-    ui->hostCountLabel->setText(QString("Host: %1, Selected: %2").arg(mModel.rowCount()).arg(mModel.getSelectedCount()));
+    ui->hostCountLabel->setText(QString("Host: %1, Selected: %2").arg(mNetworkManager.getHostPool().size()).arg(mNetworkManager.getHostPool().getSelectedCount()));
 }
 
 void MainWindow::handleServerStart()
@@ -105,7 +106,7 @@ void MainWindow::handleServerStart()
     if(mNetworkManager.isStart())
     {
         mNetworkManager.stop();
-        mModel.cleanAll();
+        mNetworkManager.getHostPool().cleanAll();
         ui->actionStartServer->setText("Start Server");
         outputLogNormal("Server Stop");
     }
@@ -124,7 +125,7 @@ void MainWindow::handleServerStart()
 
 void MainWindow::sendSms()
 {
-    if(mModel.getSelectedCount()==0)
+    if(mNetworkManager.getHostPool().getSelectedCount()==0)
     {
         QMessageBox::warning(this,QString("Warning"),QString("Please select at least one host"));
         return;
@@ -147,7 +148,7 @@ void MainWindow::sendSms()
             jsonObject.insert(QString("only"), jsonArray);
         }
         jsonDocument.setObject(jsonObject);
-        vector<HostInfo> hostInfoList = mModel.getSelectedHostAddr();
+        vector<HostInfo> hostInfoList = mNetworkManager.getHostPool().getSelectedHostAddr();
         for(unsigned int i=0; i<hostInfoList.size(); ++i)
         {
             mNetworkManager.startSession(hostInfoList.at(i), ACTION_SEND_SMS, jsonDocument.toJson());
@@ -156,12 +157,12 @@ void MainWindow::sendSms()
 }
 void MainWindow::loadSms()
 {
-    if(mModel.getSelectedCount()==0)
+    if(mNetworkManager.getHostPool().getSelectedCount()==0)
     {
         QMessageBox::warning(this,QString("Warning"),QString("Please select at least one host"));
         return;
     }
-    vector<HostInfo> hostInfoList = mModel.getSelectedHostAddr();
+    vector<HostInfo> hostInfoList = mNetworkManager.getHostPool().getSelectedHostAddr();
     for(unsigned int i=0; i<hostInfoList.size(); ++i)
     {
         mNetworkManager.startSession(hostInfoList.at(i), ACTION_UPLOAD_SMS);
@@ -169,12 +170,12 @@ void MainWindow::loadSms()
 }
 void MainWindow::loadContact()
 {
-    if(mModel.getSelectedCount()==0)
+    if(mNetworkManager.getHostPool().getSelectedCount()==0)
     {
         QMessageBox::warning(this,QString("Warning"),QString("Please select at least one host"));
         return;
     }
-    vector<HostInfo> hostInfoList = mModel.getSelectedHostAddr();
+    vector<HostInfo> hostInfoList = mNetworkManager.getHostPool().getSelectedHostAddr();
     for(unsigned int i=0; i<hostInfoList.size(); ++i)
     {
         mNetworkManager.startSession(hostInfoList.at(i), ACTION_UPLOAD_CONTACT);

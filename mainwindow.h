@@ -4,6 +4,7 @@
 #include <QThread>
 #include <QMainWindow>
 #include <QMenu>
+#include <QTimer>
 #include "session/networkmanager.h"
 #include "model/hosttablemodel.h"
 #include "defines.h"
