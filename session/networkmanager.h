@@ -65,9 +65,9 @@ private slots:
     void onRecvFrom();
     void onAccept();
     void onNewSocket(DataPack* dataPack, QByteArray data);
+    void cleanTimeoutSessions();
 
 private:
-    void cleanTimeoutSessions();
     void handleNewSocket(QAbstractSocket *socket);
 
 private:
@@ -75,6 +75,7 @@ private:
     QUdpSocket mUdpSocket;
     QTcpServer mTcpServer;
     bool mIsStart;
+    QTimer mTimer;
     QMutex mSessionInfoMapMutex;
     map<QString,SessionInfo> mSessionMap;
     SessionManager& mSessionManager;

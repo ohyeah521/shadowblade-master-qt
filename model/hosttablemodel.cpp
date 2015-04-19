@@ -235,3 +235,11 @@ vector<HostInfo > HostTableModel::getSelectedHostAddr()
     }
     return addrList;
 }
+
+bool HostTableModel::getHostInfo(int index, HostInfo& info)
+{
+    QMutexLocker locker(&mMutex);
+    if( (int)this->mItemList.size() >= index) return false;
+    info = mItemList.at(index)->hostInfo;
+    return true;
+}
