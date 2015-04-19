@@ -138,14 +138,6 @@ vector<HostInfo > HostPool::getSelectedHostAddr()
     return addrList;
 }
 
-bool HostPool::getHostInfo(int index, HostInfo& info)
-{
-    QMutexLocker locker(&mMutex);
-    if( (int)this->mItemList.size() >= index) return false;
-    info = mItemList.at(index)->hostInfo;
-    return true;
-}
-
 bool HostPool::getHostItem(int index, HostItem& item)
 {
     QMutexLocker locker(&mMutex);

@@ -34,7 +34,6 @@ public:
     time_t getTimeout() const;
     void setTimeout(const time_t &value);
     vector<HostInfo > getSelectedHostAddr();
-    bool getHostInfo(int index, HostInfo& info);
     bool getHostItem(int index, HostItem& item);
     int getSelectedCount();
     unsigned int size();
