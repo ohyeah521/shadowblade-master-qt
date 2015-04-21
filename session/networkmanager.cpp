@@ -113,6 +113,7 @@ void NetworkManager::onRecvFrom()
         {
             return;
         }
+        locker.unlock();
         QTcpSocket *socket = new QTcpSocket();
         handleNewSocket(socket);
         socket->connectToHost(host,listenPort);
@@ -163,6 +164,7 @@ void NetworkManager::onNewSocket(DataPack* dataPack, QByteArray data)
 
     //remove session from map
     mSessionMap.erase(it);
+    locker.unlock();
 
     //start session success
     emit onStartSessionSuccess(session.getSessionName(), session.getHostInfo());
