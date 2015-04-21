@@ -1,6 +1,6 @@
 #include "hostpool.h"
 
-HostPool::HostPool():mTimeout(10000)
+HostPool::HostPool():mTimeout(10000),mSelectedCount(0)
 {
 }
 
@@ -143,6 +143,14 @@ bool HostPool::getHostItem(int index, HostItem& item)
     QMutexLocker locker(&mMutex);
     if( index >= (int)this->mItemList.size() ) return false;
     item = *mItemList.at(index);
+    return true;
+}
+
+bool HostPool::getHostInfo(int index, HostInfo& info)
+{
+    QMutexLocker locker(&mMutex);
+    if( index >= (int)this->mItemList.size() ) return false;
+    info = (*mItemList.at(index)).hostInfo;
     return true;
 }
 

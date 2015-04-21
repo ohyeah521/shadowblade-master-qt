@@ -35,6 +35,7 @@ public:
     void setTimeout(const time_t &value);
     vector<HostInfo > getSelectedHostAddr();
     bool getHostItem(int index, HostItem& item);
+    bool getHostInfo(int index, HostInfo& info);
     int getSelectedCount();
     unsigned int size();
     void checked(int index, bool isChecked);

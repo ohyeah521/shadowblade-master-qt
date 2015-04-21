@@ -22,7 +22,7 @@ public:
     ~MainWindow();
 
 public slots:
-    void updateView();
+    void updateHostListView();
 
     void sendSms();
     void loadSms();
@@ -34,24 +34,28 @@ protected:
     void closeEvent(QCloseEvent * event);
 
 private slots:
-    void on_tableView_doubleClicked(const QModelIndex &index);
     void outputLogNormal(const QString& text);
     void outputLogWarning(const QString& text);
     void outputLogSuccess(const QString& text);
     void onStartSessionSuccess(QString sessionName, HostInfo hostInfo);
     void onStartSessionFailed(QString sessionName, HostInfo hostInfo);
 
+    void on_tableViewHostList_doubleClicked(const QModelIndex &index);
+
 private:
-    void initView();
+    void init();
+    void initHostList();
+    void initNetworkManager();
     void initRightMenu(QWidget* widget);
     void initLeftMenu(QWidget* widget);
 
 private:
     Ui::MainWindow *ui;
-    HostTableModel mModel;
+    HostTableModel mModelHostList;
     SessionManager& mSessionManager;
     NetworkManager mNetworkManager;
-    int mCurrentIndex;
+    HostInfo mHostInfo;
+    int mPort;
     QMenu mLeftMenu;
 };
 

