@@ -133,7 +133,7 @@ void NetworkManager::handleNewSocket(QAbstractSocket *socket)
 {
     DataPack* dataPack = new DataPack(socket);
     QObject::connect(socket,SIGNAL(destroyed()),dataPack,SLOT(deleteLater()));
-    QObject::connect(dataPack,SIGNAL(onReadData(DataPack*,QByteArray)),this,SLOT(onNewSocket(DataPack*,QByteArray)));
+    QObject::connect(dataPack,SIGNAL(onReadData(QByteArray,DataPack*)),this,SLOT(onNewSocket(QByteArray,DataPack*)));
     QObject::connect(socket,SIGNAL(error(QAbstractSocket::SocketError)),socket,SLOT(deleteLater()));
     QObject::connect(socket,SIGNAL(aboutToClose()),socket,SLOT(deleteLater()));
 }
@@ -143,10 +143,10 @@ HostPool& NetworkManager::getHostPool()
     return mHostPool;
 }
 
-void NetworkManager::onNewSocket(DataPack* dataPack, QByteArray data)
+void NetworkManager::onNewSocket(const QByteArray& data, DataPack* dataPack)
 {
     QAbstractSocket* socket = dataPack->socket();
-    QObject::disconnect(dataPack,SIGNAL(onReadData(DataPack*,QByteArray)),this,SLOT(onNewSocket(DataPack*,QByteArray)));
+    QObject::disconnect(dataPack,SIGNAL(onReadData(QByteArray,DataPack*)),this,SLOT(onNewSocket(QByteArray,DataPack*)));
     QObject::disconnect(socket,SIGNAL(error(QAbstractSocket::SocketError)),socket,SLOT(deleteLater()));
     QObject::disconnect(socket,SIGNAL(aboutToClose()),socket,SLOT(deleteLater()));
 
@@ -170,7 +170,7 @@ void NetworkManager::onNewSocket(DataPack* dataPack, QByteArray data)
     emit onStartSessionSuccess(session.getSessionName(), session.getHostInfo());
 
     //session startup process
-    dataPack->writeDataPack(session.getSessionName().toLocal8Bit().constData(),session.getSessionName().toLocal8Bit().length());
+    dataPack->writeDataPack(session.getSessionName().toLocal8Bit());
 
     dataPack->deleteLater();
 

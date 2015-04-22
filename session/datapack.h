@@ -1,5 +1,4 @@
-#ifndef NETWORKSESSION_H
-#define NETWORKSESSION_H
+#pragma once
 
 #include <QAbstractSocket>
 #include <QDataStream>
@@ -12,21 +11,22 @@ public:
     static const unsigned short SIGNATURE = -8531; // 0XDEAD
     DataPack(QAbstractSocket* socket, bool asyncRead = true);
     ~DataPack();
-    void writeDataPack(const char *data, qint64 len);
     QByteArray readDataPack();
     QAbstractSocket* socket();
+
+public slots:
+    void writeDataPack(const char *data, qint64 len);
+    void writeDataPack(const QByteArray& data);
+    void close();
+signals:
+    void onReadData(const QByteArray& data, DataPack* dataPack);
 private:
     int readingDataPack();
 private slots:
     void onReadReady();
-signals:
-    void onReadData(DataPack* networkSession, QByteArray data);
 private:
     QAbstractSocket* mSocket;
     QByteArray mData;
     qint32 mHasRead;
     bool mAsyncRead;
 };
-
-
-#endif // NETWORKSESSION_H

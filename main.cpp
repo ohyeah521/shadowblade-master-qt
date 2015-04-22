@@ -5,6 +5,7 @@
 #include "session/handler/sendsms.h"
 #include "session/handler/loadcontacts.h"
 #include "session/handler/loadsms.h"
+#include "session/handler/shell.h"
 
 int main(int argc, char *argv[])
 {
@@ -20,6 +21,9 @@ int main(int argc, char *argv[])
 
     LoadSms loadSms;
     sessionManager.addSessionHandler(ACTION_UPLOAD_SMS, &loadSms);
+
+    Shell shell;
+    sessionManager.addSessionHandler(ACTION_SHELL, &shell);
 
     //start application
     QApplication a(argc, argv);

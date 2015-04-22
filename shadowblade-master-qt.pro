@@ -11,6 +11,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TARGET = shadowblade-master-qt
 TEMPLATE = app
 
+include(libs/libSessionConsole/libSessionConsole.pro)
 
 SOURCES += main.cpp\
         mainwindow.cpp \
@@ -23,7 +24,9 @@ SOURCES += main.cpp\
     util/data.cpp \
     session/networkmanager.cpp \
     session/sessionmanager.cpp \
-    session/hostpool.cpp
+    session/hostpool.cpp \
+    session/handler/shell.cpp \
+    session/rawdata.cpp
 
 HEADERS  += mainwindow.h \
     session/datapack.h \
@@ -38,7 +41,9 @@ HEADERS  += mainwindow.h \
     session/hostinfo.h \
     session/networkmanager.h \
     session/sessionmanager.h \
-    session/hostpool.h
+    session/hostpool.h \
+    session/handler/shell.h \
+    session/rawdata.h
 
 FORMS    += mainwindow.ui \
     dialog/sendsmsdialog.ui

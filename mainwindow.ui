@@ -47,6 +47,9 @@
       <attribute name="verticalHeaderCascadingSectionResizes">
        <bool>true</bool>
       </attribute>
+      <attribute name="verticalHeaderShowSortIndicator" stdset="0">
+       <bool>true</bool>
+      </attribute>
      </widget>
     </item>
     <item>
@@ -80,7 +83,7 @@
      <x>0</x>
      <y>0</y>
      <width>1000</width>
-     <height>28</height>
+     <height>23</height>
     </rect>
    </property>
    <property name="nativeMenuBar">

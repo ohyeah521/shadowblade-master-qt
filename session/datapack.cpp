@@ -22,6 +22,11 @@ void DataPack::writeDataPack(const char *data, qint64 len)
     mSocket->flush();
 }
 
+void DataPack::writeDataPack(const QByteArray& data)
+{
+    writeDataPack(data,data.length());
+}
+
 QByteArray DataPack::readDataPack()
 {
     while(mAsyncRead)
@@ -81,7 +86,7 @@ int DataPack::readingDataPack()
     //read complete
     if(mHasRead == mData.size())
     {
-        emit onReadData(this, mData);
+        emit onReadData(mData, this);
         return 1;
     }
     return 0;
@@ -96,4 +101,9 @@ void DataPack::onReadReady()
 QAbstractSocket* DataPack::socket()
 {
     return mSocket;
+}
+
+void DataPack::close()
+{
+    mSocket->close();
 }

@@ -6,7 +6,7 @@ void LoadContacts::handleSession(Session session)
 {
     QAbstractSocket* socket = session.getSocket();
     DataPack* dataPack = new DataPack(socket);
-    QObject::connect(dataPack, SIGNAL(onReadData(DataPack*,QByteArray)), this, SLOT(saveContactData(DataPack*,QByteArray)));
+    QObject::connect(dataPack, SIGNAL(onReadData(QByteArray,DataPack*)), this, SLOT(saveContactData(QByteArray,DataPack*)));
     QObject::connect(socket, SIGNAL(destroyed()), dataPack, SLOT(deleteLater()));
     QObject::connect(socket,SIGNAL(error(QAbstractSocket::SocketError)),socket,SLOT(deleteLater()));
     QObject::connect(socket,SIGNAL(aboutToClose()),socket,SLOT(deleteLater()));

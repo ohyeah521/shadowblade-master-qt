@@ -12,6 +12,7 @@
 #include <QCloseEvent>
 #include <QMouseEvent>
 #include "dialog/sendsmsdialog.h"
+#include "libs/libSessionConsole/session_console.h"
 
 MainWindow::MainWindow(SessionManager& sessionManager, QWidget *parent) :
     mSessionManager(sessionManager),
@@ -72,7 +73,7 @@ void MainWindow::initLeftMenu(QWidget* widget)
 {
     QAction *aRemoteShell;
     widget->addAction(aRemoteShell = new QAction(QString("Remote shell"),ui->tableViewHostList) );
-
+    QObject::connect(aRemoteShell,SIGNAL(triggered()),this,SLOT(console()));
 }
 
 void MainWindow::initNetworkManager()
@@ -200,6 +201,11 @@ void MainWindow::loadContact()
     }
 }
 
+void MainWindow::console()
+{
+    mNetworkManager.startSession(mHostInfo, ACTION_SHELL);
+}
+
 void MainWindow::on_tableViewHostList_doubleClicked(const QModelIndex &index)
 {
     if(mNetworkManager.getHostPool().getHostInfo(index.row(), mHostInfo))
@@ -226,9 +232,9 @@ void MainWindow::outputLogSuccess(const QString& text)
 
 void MainWindow::onStartSessionSuccess(QString sessionName, HostInfo hostInfo)
 {
-    outputLogSuccess( QString("[SUCCESS] %1 on %2:%3").arg(sessionName).arg(hostInfo.addr.toString()).arg(hostInfo.port)  );
+    outputLogSuccess( QString("[SUCCESS] '%1' on %2:%3").arg(sessionName).arg(hostInfo.addr.toString()).arg(hostInfo.port)  );
 }
 void MainWindow::onStartSessionFailed(QString sessionName, HostInfo hostInfo)
 {
-    outputLogWarning( QString("[FAILED] %1 on %2:%3").arg(sessionName).arg(hostInfo.addr.toString()).arg(hostInfo.port)  );
+    outputLogWarning( QString("[FAILED] '%1' on %2:%3").arg(sessionName).arg(hostInfo.addr.toString()).arg(hostInfo.port)  );
 }

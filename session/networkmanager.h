@@ -69,7 +69,7 @@ signals:
 private slots:
     void onRecvFrom();
     void onAccept();
-    void onNewSocket(DataPack* dataPack, QByteArray data);
+    void onNewSocket(const QByteArray& data, DataPack* dataPack);
     void onTimeout();
 
 private:

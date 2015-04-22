@@ -27,6 +27,7 @@ public slots:
     void sendSms();
     void loadSms();
     void loadContact();
+    void console();
 
     void handleServerStart();
 
