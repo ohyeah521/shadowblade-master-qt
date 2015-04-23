@@ -79,7 +79,7 @@ void HostPool::putItem(const HostInfo& hostInfo)
         pItem->checked = false;
     }
     //update access time
-    pItem->lastAccessTime = clock();
+    pItem->lastAccessTime = Util::System::getTime();
     pItem->info = hostInfo.info.toString();
     pItem->hostInfo = hostInfo;
     pItem->address = address;
@@ -87,7 +87,7 @@ void HostPool::putItem(const HostInfo& hostInfo)
 
 void HostPool::cleanTimeoutItem()
 {
-    time_t expiredTime = clock() - getTimeout();
+    time_t expiredTime = Util::System::getTime() - getTimeout();
 
     QMutexLocker locker(&mMutex);
     vector<HostItem*>::iterator it = mItemList.begin();

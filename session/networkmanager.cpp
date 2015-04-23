@@ -193,7 +193,7 @@ void NetworkManager::startSession(const HostInfo& hostInfo, const QString& sessi
     info.sessionData = sessionData;
     info.sessionName = sessionName;
     info.hostInfo = hostInfo;
-    info.createTime = clock();
+    info.createTime = Util::System::getTime();
 
     QMutexLocker locker(&mSessionInfoMapMutex);
     mSessionMap[sessionUuid] = info;
@@ -203,7 +203,7 @@ void NetworkManager::cleanTimeoutSessions()
 {
     QMutexLocker locker(&mSessionInfoMapMutex);
 
-    time_t expiredTime = clock() - mTimeout;
+    time_t expiredTime = Util::System::getTime() - mTimeout;
     map<QString,SessionInfo>::iterator it = mSessionMap.begin();
     while(it!=mSessionMap.end())
     {

@@ -1,7 +1,5 @@
 #include "rawdata.h"
 
-#include "RawData.h"
-
 RawData::RawData(QAbstractSocket* socket):mSocket(socket)
 {
     QObject::connect(mSocket,SIGNAL(readyRead()),this,SLOT(onReadReady()));

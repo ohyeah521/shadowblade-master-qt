@@ -14,7 +14,7 @@ using std::vector;
 using std::map;
 using std::pair;
 
-
+#include "../util/system.h"
 #include "../session/hostinfo.h"
 
 struct HostItem
