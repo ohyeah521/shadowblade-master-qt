@@ -30,6 +30,7 @@ struct SessionInfo
     QVariant sessionData;
     QString sessionName;
     time_t createTime;
+    int status;
 };
 
 class NetworkManager: public QObject
@@ -38,6 +39,8 @@ class NetworkManager: public QObject
 public:
     static const short SIGNATURE = -8531; // 0XDEAD
     enum {
+        OPERATION_SYN = -1,
+        OPERATION_ACK = -2,
         OPERATION_HEARTBEAT = 0,
         OPERATION_CONNECT_HOST = 1,
         OPERATION_LISTEN_HOST = 2,
@@ -58,7 +61,7 @@ public:
 
 protected:
     void onIncomeHost(const HostInfo& hostInfo);
-    void cleanTimeoutSessions();
+    void handleTimeoutSessions();
 
 signals:
     void onStartSessionSuccess(QString sessionName, HostInfo hostInfo);
@@ -75,6 +78,7 @@ private slots:
 private:
     void init();
     void handleNewSocket(QAbstractSocket *socket);
+    void sendSynPack(const HostInfo& hostInfo, const QByteArray& sessionUuid);
 
 private:
     time_t mTimeout;

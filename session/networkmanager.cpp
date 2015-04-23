@@ -51,7 +51,7 @@ void NetworkManager::stop()
 
 void NetworkManager::onTimeout()
 {
-    cleanTimeoutSessions();
+    handleTimeoutSessions();
     int poolSize = getHostPool().size();
     getHostPool().cleanTimeoutItem();
     if(poolSize != getHostPool().size())
@@ -86,7 +86,35 @@ void NetworkManager::onRecvFrom()
     }
     short operation = 0;
     dataStream >> operation;
-    if(operation == OPERATION_HEARTBEAT)
+    if(operation == OPERATION_ACK)
+    {
+        QByteArray uuid(datagram);
+        uuid.remove(0, sizeof(signature) + sizeof(operation) );
+        QMutexLocker locker(&mSessionInfoMapMutex);
+        map<QString, SessionInfo>::iterator it = mSessionMap.find(uuid);
+        if(it==mSessionMap.end())
+        {
+            return;
+        }
+        if(it->second.status == OPERATION_SYN)
+        {
+            it->second.status = OPERATION_ACK;
+        }
+        else
+        {
+            return;
+        }
+        HostInfo hostInfo = it->second.hostInfo;
+        locker.unlock();
+
+        QByteArray data;
+        QDataStream sendDataStream(&data, QIODevice::WriteOnly);
+        sendDataStream.setByteOrder(QDataStream::BigEndian);
+        sendDataStream << SIGNATURE << (short)( (hostInfo.mode == HostInfo::REFLECT_CONNECT) ? OPERATION_CONNECT_HOST : OPERATION_LISTEN_HOST ); //signature & operation code
+        sendDataStream.writeRawData(uuid.data(),uuid.length());
+        mUdpSocket.writeDatagram(data,hostInfo.addr,hostInfo.port);
+    }
+    else if(operation == OPERATION_HEARTBEAT)
     {
         QByteArray info(datagram);
         info.remove(0, sizeof(signature) + sizeof(operation));
@@ -178,28 +206,37 @@ void NetworkManager::onNewSocket(const QByteArray& data, DataPack* dataPack)
     mSessionManager.handleSession(session);
 }
 
-void NetworkManager::startSession(const HostInfo& hostInfo, const QString& sessionName, const QVariant& sessionData)
+void NetworkManager::sendSynPack(const HostInfo& hostInfo, const QByteArray& sessionUuid)
 {
-    if(hostInfo.mode != HostInfo::REFLECT_CONNECT || hostInfo.mode != HostInfo::REFLECT_CONNECT) return;
-    QByteArray sessionUuid = QUuid::createUuid().toByteArray();
     QByteArray data;
     QDataStream dataStream(&data, QIODevice::WriteOnly);
     dataStream.setByteOrder(QDataStream::BigEndian);
-    dataStream << SIGNATURE << (short)( (hostInfo.mode == HostInfo::REFLECT_CONNECT) ? OPERATION_CONNECT_HOST : OPERATION_LISTEN_HOST ); //signature & operation code
+    dataStream << SIGNATURE << (short)( OPERATION_SYN ); //signature & operation code
     dataStream.writeRawData(sessionUuid.data(),sessionUuid.length());
     mUdpSocket.writeDatagram(data,hostInfo.addr,hostInfo.port);
+}
+
+void NetworkManager::startSession(const HostInfo& hostInfo, const QString& sessionName, const QVariant& sessionData)
+{
+    if(hostInfo.mode != HostInfo::REFLECT_CONNECT || hostInfo.mode != HostInfo::REFLECT_CONNECT) return;
 
     SessionInfo info;
     info.sessionData = sessionData;
     info.sessionName = sessionName;
     info.hostInfo = hostInfo;
     info.createTime = Util::System::getTime();
+    info.status = OPERATION_SYN;
+
+    QByteArray sessionUuid = QUuid::createUuid().toByteArray();
 
     QMutexLocker locker(&mSessionInfoMapMutex);
     mSessionMap[sessionUuid] = info;
+    locker.unlock();
+
+    sendSynPack(hostInfo,sessionUuid);
 }
 
-void NetworkManager::cleanTimeoutSessions()
+void NetworkManager::handleTimeoutSessions()
 {
     QMutexLocker locker(&mSessionInfoMapMutex);
 
@@ -213,6 +250,10 @@ void NetworkManager::cleanTimeoutSessions()
             emit onStartSessionFailed(it->second.sessionName, it->second.hostInfo);
             //remove it
             mSessionMap.erase(it);
+        }
+        else if (it->second.status == OPERATION_SYN)
+        {
+            sendSynPack(it->second.hostInfo, it->first.toLocal8Bit());
         }
         ++it;
     }
