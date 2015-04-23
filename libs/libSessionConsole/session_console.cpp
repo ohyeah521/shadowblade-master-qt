@@ -51,6 +51,7 @@ void SessionConsole::paintEvent(QPaintEvent *e){
 }
 
 void SessionConsole::onExcuteButtonClicked(){
+    if(ui->lineEdit->text().length() ==0) return;
     ui->pushButton->setText(QStringLiteral("↓↓↓   执行中...   ↓↓↓"));
 
     emit startCmd((ui->lineEdit->text()+"\n").toLocal8Bit());
