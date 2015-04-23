@@ -10,6 +10,6 @@ class LoadContacts: public QObject, public SessionHandler
 public:
     void handleSession(Session session);
 public slots:
-    void saveContactData(DataPack* dataPack, QByteArray data);
+    void saveContactData(QByteArray data, DataPack* dataPack);
 };
 

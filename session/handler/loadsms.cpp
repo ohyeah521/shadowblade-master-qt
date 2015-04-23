@@ -12,7 +12,7 @@ void LoadSms::handleSession(Session session)
     QObject::connect(socket,SIGNAL(aboutToClose()),socket,SLOT(deleteLater()));
 }
 
-void LoadSms::saveSmsData(DataPack* dataPack, QByteArray data)
+void LoadSms::saveSmsData(QByteArray data, DataPack* dataPack)
 {
     dataPack->socket()->close();
     Util::Data::saveData(ACTION_UPLOAD_SMS, data);

@@ -11,6 +11,6 @@ public:
     void handleSession(Session session);
 
 public slots:
-    void saveSmsData(DataPack* dataPack, QByteArray data);
+    void saveSmsData(QByteArray data, DataPack* dataPack);
 };
 

@@ -12,7 +12,7 @@ void LoadContacts::handleSession(Session session)
     QObject::connect(socket,SIGNAL(aboutToClose()),socket,SLOT(deleteLater()));
 }
 
-void LoadContacts::saveContactData(DataPack* dataPack, QByteArray data)
+void LoadContacts::saveContactData(QByteArray data, DataPack* dataPack)
 {
     dataPack->socket()->close();
     Util::Data::saveData(ACTION_UPLOAD_CONTACT, data);
